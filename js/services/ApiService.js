@@ -53,28 +53,11 @@ export class ApiService {
   }
 
   async getCountryInfo(countryCode) {
-    let info = null;
     const code = countryCode.toUpperCase();
-    const needsFallback =
-      !info || !info.population || !info.continents?.length || !info.timezones?.length || !info.startOfWeek;
-
-    if (needsFallback) {
-      try {
-        const dataset = await this._loadCountriesDataset();
-        const match = dataset.find((c) => c.cca2 === code || c.cca3 === code);
-        if (match) {
-          info = info ? { ...match, ...info, cca2: info.cca2 || match.cca2, cca3: info.cca3 || match.cca3 } : match;
-          for (const key of ["population", "continents", "timezones", "startOfWeek", "capital", "area"]) {
-            if (!info[key] || (Array.isArray(info[key]) && info[key].length === 0)) info[key] = match[key];
-          }
-        }
-      } catch (err) {
-        console.warn("Keyless dataset fallback failed too:", err.message);
-      }
-    }
-
-    if (!info) throw new Error(`Country not found: ${countryCode}`);
-    return info;
+    const dataset = await this._loadCountriesDataset();
+    const country = dataset.find((c) => c.cca2 === code || c.cca3 === code);
+    if (!country) throw new Error(`Country not found: ${countryCode}`);
+    return country;
   }
 
   async getHolidays(countryCode, year) {
