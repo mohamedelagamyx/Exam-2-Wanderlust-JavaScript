@@ -2,7 +2,7 @@ export class ApiService {
   constructor() {
     this.NAGER = "https://date.nager.at/api/v3";
     this.REST_COUNTRIES_V5 = "https://api.restcountries.com/countries/v5";
-    this.REST_COUNTRIES_API_KEY = "rc_live_demo";
+    // No API credentials are embedded in this public frontend.
     this.COUNTRIES_DATA_URLS = [
       "https://cdn.jsdelivr.net/npm/world-countries@5/dist/countries.json",
       "https://cdn.jsdelivr.net/npm/world-countries@5/countries.json",
@@ -54,12 +54,6 @@ export class ApiService {
 
   async getCountryInfo(countryCode) {
     let info = null;
-    try {
-      info = await this._getCountryInfoV5(countryCode);
-    } catch (err) {
-      console.warn("REST Countries v5 lookup failed, falling back to the keyless dataset:", err.message);
-    }
-
     const code = countryCode.toUpperCase();
     const needsFallback =
       !info || !info.population || !info.continents?.length || !info.timezones?.length || !info.startOfWeek;
@@ -81,57 +75,6 @@ export class ApiService {
 
     if (!info) throw new Error(`Country not found: ${countryCode}`);
     return info;
-  }
-
-  async _getCountryInfoV5(countryCode) {
-    const code = countryCode.toUpperCase();
-    const property = code.length === 2 ? "codes.alpha_2" : "codes.alpha_3";
-    const fields = [
-      "names.common", "names.official", "flag.url_svg", "capitals", "region", "subregion",
-      "continents", "area.kilometers", "population", "languages", "currencies",
-      "calling_codes", "cars.driving_side", "date.start_of_week", "borders",
-      "links.google_maps", "timezones", "codes.alpha_2", "codes.alpha_3",
-    ].join(",");
-    const url = `${this.REST_COUNTRIES_V5}/${property}/${code}?response_fields=${fields}`;
-
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${this.REST_COUNTRIES_API_KEY}` } });
-    if (!res.ok) throw new Error(`REST Countries v5 request failed (${res.status})`);
-
-    const body = await res.json();
-    const obj = body?.data?.objects?.[0];
-    if (!obj) throw new Error("REST Countries v5 returned no matching country");
-    if (body?.data?._demo) throw new Error("Using the public demo key - configure a real API key to get live data");
-
-    return this._normalizeV5(obj);
-  }
-
-  _normalizeV5(obj) {
-    const languages = {};
-    (obj.languages || []).forEach((l, i) => {
-      const key = l.iso_639_1 || l.iso_639_2 || l.code || `lang${i}`;
-      languages[key] = l.name_en || l.name || l.english_name || key;
-    });
-
-    return {
-      name: { common: obj.names?.common, official: obj.names?.official },
-      flags: { svg: obj.flag?.url_svg },
-      capital: (obj.capitals || []).map((c) => c.name),
-      population: obj.population,
-      area: obj.area?.kilometers,
-      continents: obj.continents,
-      region: obj.region,
-      subregion: obj.subregion,
-      idd: { root: obj.calling_codes?.[0] ? `+${obj.calling_codes[0]}` : "", suffixes: [""] },
-      car: { side: obj.cars?.driving_side },
-      startOfWeek: obj.date?.start_of_week,
-      currencies: obj.currencies || {},
-      languages,
-      borders: obj.borders || [],
-      maps: { googleMaps: obj.links?.google_maps },
-      timezones: obj.timezones,
-      cca2: obj.codes?.alpha_2,
-      cca3: obj.codes?.alpha_3,
-    };
   }
 
   async getHolidays(countryCode, year) {
